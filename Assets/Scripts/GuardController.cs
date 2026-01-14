@@ -33,6 +33,8 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
     public float patrolWait = 5.0f; // Tempo de espera entre puntos de patrulla
     float patrolTimePassed = 0; // Tempo pasado desde o último cambio de punto de patrulla
 
+    // Campo para calcular el tiempo en que empieza la huida
+    private float runaWayStartTime;
     //=========================================================================
     // Comproba se o gardián pode ver ao xogador dentro do seu campo de visión (distancia e ángulo) e sen obstrucións.
     // Parám.: player -> Transform do xogador a comprobar
@@ -154,6 +156,12 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
     {
         // Loxica de fuxida
         var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+
+        if (Time.time - runaWayStartTime > 10f)
+        {
+            currentState = State.Patrol;
+            return;
+        }
         if (Vector3.Distance(transform.position, escapePoint) <= agent.stoppingDistance + 0.5f)
         {
             currentState = State.Patrol;
@@ -194,6 +202,7 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
     {
         escapePoint = point; // Establece o punto a fuxir
         currentState = State.RunaWay; // Cambia a estado RunaWay
+        runaWayStartTime = Time.time;
     }
 
     //=========================================================================
