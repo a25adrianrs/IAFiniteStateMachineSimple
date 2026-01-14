@@ -12,9 +12,10 @@ using UnityEngine;
 [RequireComponent(typeof(UnityEngine.AI.NavMeshAgent))] // Require un NavMeshAgent para o movemento
 public class GuardController : MonoBehaviour // Controlador de gardián con FSM (Finite State Machine)
 {
-    enum State { Patrol, Investigate, Chase }; // Estados da FSM: Patrullar, Investigar, Perseguir
+    enum State { Patrol, Investigate, Chase, RunaWay }; // Estados da FSM: Patrullar, Investigar, Perseguir, Huir
     State currentState = State.Patrol; // Estado actual, comeza en Patrol
     Vector3 lastPlaceSeen; // Última posición onde se viu o xogador
+    Vector3 escapePoint;
     public Transform player; // Referencia ao transform do xogador
 
     [Header("Debug/Visualization")]
@@ -96,6 +97,11 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
             case State.Chase:
                 Chase(player);
                 break;
+
+            case State.RunaWay:
+                // Lóxica de fuxida (non implementada neste exemplo)
+                RunaWay();
+                break;
         }
 
         if (tempState != currentState) // Se o estado cambiou
@@ -143,6 +149,19 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
             Debug.Log("Guard's state: " + currentState + " point " + lastPlaceSeen);
         }
     }
+
+    void RunaWay()
+    {
+        // Loxica de fuxida
+        var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        if (Vector3.Distance(transform.position, escapePoint) <= agent.stoppingDistance + 0.5f)
+        {
+            currentState = State.Patrol;
+            return;
+        }
+        // Hacemos que el agente
+        agent.SetDestination(escapePoint);
+    }
     //=========================================================================
     // Patrulla xerando puntos aleatorios arredor e navegando cara eles tras un tempo de espera
     //=========================================================================
@@ -169,6 +188,12 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
     {
         lastPlaceSeen = point; // Establece o punto a investigar
         currentState = State.Investigate; // Cambia a estado Investigate
+    }
+
+    public void RunAwayPoint(Vector3 point) // Ordena ao gardián fuxir dun punto específico
+    {
+        escapePoint = point; // Establece o punto a fuxir
+        currentState = State.RunaWay; // Cambia a estado RunaWay
     }
 
     //=========================================================================
@@ -213,7 +238,7 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
             Debug.DrawLine(startPos, player.position, Color.red); // Debuxa unha liña ata o xogador
         }
     }
-    
+
     //=========================================================================
     // Debuxa o cono de visión na Scene View do editor para facilitar o axuste de parámetros
     //=========================================================================
@@ -221,7 +246,7 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
     {
         if (!showFOVGizmos)
             return;
-        
+
         if (player != null && ICanSee(player)) // Se ve o xogador
         {
             Gizmos.color = Color.red; // Vermello cando detecta o xogador

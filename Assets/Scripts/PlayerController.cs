@@ -1,4 +1,5 @@
 using System.Collections;
+
 using UnityEngine;
 
 #if ENABLE_INPUT_SYSTEM
@@ -12,7 +13,7 @@ using UnityEngine.InputSystem;
 //  - Depuración: debuxa unha esfera/círculo co radio do knock en Play e na Scene
 //  - Requisitos: precisa un AudioSource no mesmo GameObject
 // ============================================================================
-[RequireComponent(typeof(AudioSource))] // Require un AudioSource para o son
+//[RequireComponent(typeof(AudioSource))] // Require un AudioSource para o son
 public class PlayerController : MonoBehaviour // Controlador sinxelo para o xogador con soporte para ambos sistemas de input de Unity
 {
     [Header("Movement Settings")]
@@ -24,15 +25,34 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
 
     [Header("Knock Settings")]
     public float knockRadius = 20.0f;
+    [Header("Explosion Settings")]
+    public float explosionRadius = 50.0f;
 
     [Header("Debug/Visualization")]
     public bool showKnockGizmos = true;            // Mostrar a esfera do son
+    public bool showExplosionGizmos = true;        // Esfera de la explosión
     public float knockGizmoDuration = 1.5f;        // Tempo que permanece visible a esfera
+    public float explosionGizmoDuration = 1.5f;        // Tempo que permanece visible a esfera
+
     public Color knockGizmoColor = new Color(0f, 1f, 1f, 0.85f); // Cor da esfera (cian)
+    public Color explosionGizmoColor = new Color(1f, 0.3f, 0f, 0.5f); // Cor da esfera de la explosion (naranja)
+
+
+    // Sonido
+    [Header("Audio Sources")]
+    [SerializeField] private AudioSource knockAudio;
+    [SerializeField] private AudioSource explosionAudio;
+
+    // Punto Seguro para la huda
+    [Header("Punto Seguro")]
+    [SerializeField] private Transform safePoint;
 
     // Estado do último knock
     private Vector3 lastKnockPoint;
     private float lastKnockTime = -999f;
+
+    private Vector3 lastExplosionPoint;
+    private float lastExplosionTime = -999f;
 
     private Vector2 moveInput; // Input actual do xogador
 
@@ -66,6 +86,12 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
         {
             HandleSpaceAction();
         }
+
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            Debug.Log(" OldInput E pressed");
+            HandleEAction();
+        }
     }
 
     //=========================================================================
@@ -91,6 +117,11 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
             if (Keyboard.current.spaceKey.wasPressedThisFrame)
             {
                 HandleSpaceAction();
+            }
+            if (Keyboard.current.eKey.wasPressedThisFrame)
+            {
+                Debug.Log("NewInput E pressed");
+                HandleEAction();
             }
         }
 #else
@@ -143,6 +174,31 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
         }
     }
 
+
+    void HandleEAction()
+    {
+        StartCoroutine(PlayExplosion());
+        GuardController[] guards = FindObjectsByType<GuardController>(FindObjectsSortMode.None);
+        Vector3 explosionPoint = transform.position;
+
+        // Guardamos el estado de la explosión para dibujar la esfera
+        lastExplosionPoint = explosionPoint;
+        lastExplosionTime = Time.time;
+
+        DrawnExplosionCircleDebug(lastExplosionPoint, explosionRadius, explosionGizmoDuration, explosionGizmoColor);
+
+        foreach (var guard in guards)
+        {
+            float dist = Vector3.Distance(guard.transform.position, explosionPoint);
+
+            if (dist <= explosionRadius)
+            {
+                guard.RunAwayPoint(safePoint.position);
+            }
+        }
+    }
+
+
     //=========================================================================
     // Debuxa un círculo no plano XZ usando segmentos con Debug.DrawLine (visible en Game/Scene)
     //=========================================================================
@@ -186,8 +242,46 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
     //=========================================================================
     IEnumerator PlayKnock()
     {
-        AudioSource audio = GetComponent<AudioSource>();
-        audio.Play();
-        yield return new WaitForSeconds(audio.clip.length);
+        if (knockAudio != null)
+        {
+            knockAudio.Play();
+            yield return new WaitForSeconds(knockAudio.clip.length);
+        }
+    }
+
+    //=========================================================================
+    // Debuxa un círculo no plano XZ usando segmentos con Debug.DrawLine (visible en Game/Scene)
+    //=========================================================================
+    void DrawnExplosionCircleDebug(Vector3 center, float radius, float duration, Color color)
+    {
+        int segments = 36;
+        float step = Mathf.PI * 2f / segments;
+        Vector3 prev = center + new Vector3(radius, 0f, 0f);
+        for (int i = 1; i <= segments; i++)
+        {
+            float angle = i * step;
+            Vector3 next = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+            Debug.DrawLine(prev, next, color, duration);
+            prev = next;
+        }
+    }
+
+
+    // HandleEAction
+
+
+
+    //=========================================================================
+    // Reproduce o son de explosion e espera a que remate
+    //=========================================================================
+
+    IEnumerator PlayExplosion()
+    {
+        if (explosionAudio != null)
+        {
+            explosionAudio.Play();
+            yield return new WaitForSeconds(explosionAudio.clip.length);
+        }
     }
 }
+
