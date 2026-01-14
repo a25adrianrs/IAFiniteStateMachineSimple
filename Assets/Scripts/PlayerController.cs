@@ -237,17 +237,7 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
         }
     }
 
-    //=========================================================================
-    // Reproduce o son de knock e espera a que remate
-    //=========================================================================
-    IEnumerator PlayKnock()
-    {
-        if (knockAudio != null)
-        {
-            knockAudio.Play();
-            yield return new WaitForSeconds(knockAudio.clip.length);
-        }
-    }
+
 
     //=========================================================================
     // Debuxa un círculo no plano XZ usando segmentos con Debug.DrawLine (visible en Game/Scene)
@@ -269,7 +259,17 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
 
     // HandleEAction
 
-
+    //=========================================================================
+    // Reproduce o son de knock e espera a que remate
+    //=========================================================================
+    IEnumerator PlayKnock()
+    {
+        if (knockAudio != null)
+        {
+            knockAudio.Play();
+            yield return new WaitForSeconds(knockAudio.clip.length);
+        }
+    }
 
     //=========================================================================
     // Reproduce o son de explosion e espera a que remate

@@ -101,7 +101,7 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
                 break;
 
             case State.RunaWay:
-                // Lóxica de fuxida (non implementada neste exemplo)
+
                 RunaWay();
                 break;
         }
@@ -167,7 +167,7 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
             currentState = State.Patrol;
             return;
         }
-        // Hacemos que el agente
+        // Hacemos que el agente vaya al punto de escape
         agent.SetDestination(escapePoint);
     }
     //=========================================================================
@@ -198,11 +198,11 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
         currentState = State.Investigate; // Cambia a estado Investigate
     }
 
-    public void RunAwayPoint(Vector3 point) // Ordena ao gardián fuxir dun punto específico
+    public void RunAwayPoint(Vector3 point) // Ordena a los guardias huir a un punto específico
     {
-        escapePoint = point; // Establece o punto a fuxir
+        escapePoint = point; // Establece o punto a huir
         currentState = State.RunaWay; // Cambia a estado RunaWay
-        runaWayStartTime = Time.time;
+        runaWayStartTime = Time.time; // Empieza a contar el tiempo de huida
     }
 
     //=========================================================================
