@@ -8,116 +8,121 @@ using UnityEngine.InputSystem;
 
 // ============================================================================
 // PlayerController
-//  - Movemento: controla o xogador con teclas WASD (novo Input System ou clásico)
-//  - Acción: ao premer Space fai un "knock" (reproduce un son) e alerta gardas próximos
-//  - Depuración: debuxa unha esfera/círculo co radio do knock en Play e na Scene
-//  - Requisitos: precisa un AudioSource no mesmo GameObject
+//  - Controla el movimiento del jugador en el mundo 3D usando WASD / flechas.
+//  - Permite emitir un "knock" con Space y una "explosión" con E.
+//  - Cuando se activa un knock o una explosión, notifica a los GuardController cercanos.
+//  - Dibuja ayudas visuales en la escena para el radio de acción y para depuración.
+//  - Usa AudioSource para reproducir efectos de sonido.
 // ============================================================================
-//[RequireComponent(typeof(AudioSource))] // Require un AudioSource para o son
-public class PlayerController : MonoBehaviour // Controlador sinxelo para o xogador con soporte para ambos sistemas de input de Unity
+//[RequireComponent(typeof(AudioSource))] // Si quieres forzar que haya un AudioSource, descomenta esta línea.
+public class PlayerController : MonoBehaviour
 {
     [Header("Movement Settings")]
-    public float moveSpeed = 5f;           // Velocidade de movemento cara adiante/atrás
-    public float rotationSpeed = 180f;     // Velocidade de rotación (graos por segundo)
+    public float moveSpeed = 5f;           // Velocidad de movimiento hacia delante/atrás.
+    public float rotationSpeed = 180f;     // Velocidad de rotación en grados por segundo.
 
     [Header("Input System Selection")]
-    public bool useNewInputSystem = true;  // True = novo Input System, False = Input Manager clásico
+    public bool useNewInputSystem = true;  // True = usa el nuevo Input System; False = usa el Input Manager clásico.
 
     [Header("Knock Settings")]
-    public float knockRadius = 20.0f;
+    public float knockRadius = 20.0f;      // Radio de influencia del knock.
     [Header("Explosion Settings")]
-    public float explosionRadius = 50.0f;
+    public float explosionRadius = 50.0f;  // Radio de influencia de la explosión.
 
     [Header("Debug/Visualization")]
-    public bool showKnockGizmos = true;            // Mostrar a esfera do son
-    public bool showExplosionGizmos = true;        // Esfera de la explosión
-    public float knockGizmoDuration = 1.5f;        // Tempo que permanece visible a esfera
-    public float explosionGizmoDuration = 1.5f;        // Tempo que permanece visible a esfera
+    public bool showKnockGizmos = true;            // Mostrar el gizmo de knock en la escena.
+    public bool showExplosionGizmos = true;        // Mostrar el gizmo de explosión en la escena.
+    public float knockGizmoDuration = 1.5f;        // Duración en segundos del gizmo del knock.
+    public float explosionGizmoDuration = 1.5f;    // Duración en segundos del gizmo de la explosión.
 
-    public Color knockGizmoColor = new Color(0f, 1f, 1f, 0.85f); // Cor da esfera (cian)
-    public Color explosionGizmoColor = new Color(1f, 0.3f, 0f, 0.5f); // Cor da esfera de la explosion (naranja)
+    public Color knockGizmoColor = new Color(0f, 1f, 1f, 0.85f); // Color del gizmo del knock.
+    public Color explosionGizmoColor = new Color(1f, 0.3f, 0f, 0.5f); // Color del gizmo de la explosión.
 
-
-    // Sonido
     [Header("Audio Sources")]
-    [SerializeField] private AudioSource knockAudio;
-    [SerializeField] private AudioSource explosionAudio;
+    [SerializeField] private AudioSource knockAudio;      // AudioSource para reproducir el sonido del knock.
+    [SerializeField] private AudioSource explosionAudio;  // AudioSource para reproducir el sonido de la explosión.
 
-    // Punto Seguro para la huda
     [Header("Punto Seguro")]
-    [SerializeField] private Transform safePoint;
+    [SerializeField] private Transform safePoint;         // Punto al que los guardias huyen tras la explosión.
 
-    // Estado do último knock
-    private Vector3 lastKnockPoint;
-    private float lastKnockTime = -999f;
+    private Vector3 lastKnockPoint;   // Posición donde se realizó el último knock.
+    private float lastKnockTime = -999f; // Momento del último knock; usado para dibujar gizmos.
 
-    private Vector3 lastExplosionPoint;
-    private float lastExplosionTime = -999f;
+    private Vector3 lastExplosionPoint; // Posición de la última explosión.
+    private float lastExplosionTime = -999f; // Momento de la última explosión; usado para dibujar gizmos.
 
-    private Vector2 moveInput; // Input actual do xogador
+    private Vector2 moveInput; // Entrada de movimiento actual del jugador.
 
     //=========================================================================
-    // Le o input segundo o sistema seleccionado (novo ou clásico) e move o xogador cada frame
+    // Update se ejecuta una vez por frame.
+    // Lee la entrada del jugador y mueve el personaje en cada frame.
     //=========================================================================
     void Update()
     {
-        if (useNewInputSystem) // Obtén o input do sistema seleccionado
+        if (useNewInputSystem)
         {
-            GetNewInput();
+            GetNewInput(); // Lee el input con el nuevo Input System (Keyboard.current).
         }
         else
         {
-            GetOldInput();
+            GetOldInput(); // Lee el input con el Input Manager clásico (Input.GetAxis, GetKeyDown).
         }
 
-        MovePlayer(); // Move o xogador baseándose no input
+        MovePlayer(); // Aplica la rotación y el avance/retroceso en base al input leído.
     }
+
     //=========================================================================
-    // Le o input usando o Input Manager clásico (Input.GetAxis): Horizontal (A/D) e Vertical (W/S)
+    // Lee el input usando el sistema clásico de Unity.
+    // Utiliza Input.GetAxis para el movimiento y Input.GetKeyDown para acciones.
     //=========================================================================
-    void GetOldInput() // Le o input usando o Input Manager clásico (Input.GetAxis)
+    void GetOldInput()
     {
-        float horizontal = Input.GetAxis("Horizontal"); // A/D ou frechas esquerda/dereita (eixos configurados en Edit > Project Settings > Input Manager)
-        float vertical = Input.GetAxis("Vertical");     // W/S ou frechas arriba/abaixo
+        float horizontal = Input.GetAxis("Horizontal"); // Eje horizontal: A/D o flechas.
+        float vertical = Input.GetAxis("Vertical");     // Eje vertical: W/S o flechas.
+
+        // Guardamos el valor del input en moveInput para usarlo en MovePlayer().
         moveInput = new Vector2(horizontal, vertical);
 
-        // Detecta Space para executar unha acción (knock)
+        // Detecta el botón Space para realizar el knock.
         if (Input.GetKeyDown(KeyCode.Space))
         {
             HandleSpaceAction();
         }
 
+        // Detecta la tecla E para realizar la acción de explosión.
         if (Input.GetKeyDown(KeyCode.E))
         {
-            Debug.Log(" OldInput E pressed");
+            Debug.Log("OldInput E pressed");
             HandleEAction();
         }
     }
 
     //=========================================================================
-    // Le o input usando o novo Input System consultando Keyboard.current (A, D, W, S)
-    // Se o novo sistema non está dispoñible, recorre ao sistema antigo
+    // Lee el input usando el nuevo Input System desde Keyboard.current.
+    // Si el nuevo sistema no está activado, recurre al antiguo.
     //=========================================================================
-    void GetNewInput() // Le o input usando o novo Input System (Keyboard.current)
+    void GetNewInput()
     {
 #if ENABLE_INPUT_SYSTEM
-        if (Keyboard.current != null) // Comproba se hai un teclado conectado
+        if (Keyboard.current != null)
         {
             float horizontal = 0f;
             float vertical = 0f;
 
-            if (Keyboard.current.aKey.isPressed) horizontal -= 1f;  // A = esquerda
-            if (Keyboard.current.dKey.isPressed) horizontal += 1f;  // D = dereita
-            if (Keyboard.current.sKey.isPressed) vertical -= 1f;    // S = atrás
-            if (Keyboard.current.wKey.isPressed) vertical += 1f;    // W = adiante
+            if (Keyboard.current.aKey.isPressed) horizontal -= 1f; // A = izquierda.
+            if (Keyboard.current.dKey.isPressed) horizontal += 1f; // D = derecha.
+            if (Keyboard.current.sKey.isPressed) vertical -= 1f;   // S = atrás.
+            if (Keyboard.current.wKey.isPressed) vertical += 1f;   // W = adelante.
 
-            moveInput = new Vector2(horizontal, vertical);
+            moveInput = new Vector2(horizontal, vertical); // Input de movimiento guardado.
 
-            // Detecta Space para executar unha acción (knock)
+            // Detecta la pulsación de Space en este frame.
             if (Keyboard.current.spaceKey.wasPressedThisFrame)
             {
                 HandleSpaceAction();
             }
+
+            // Detecta la pulsación de E en este frame.
             if (Keyboard.current.eKey.wasPressedThisFrame)
             {
                 Debug.Log("NewInput E pressed");
@@ -125,63 +130,70 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
             }
         }
 #else
-        GetOldInput(); // Se o novo sistema non está dispoñible, usa o antigo como fallback
+        GetOldInput(); // Fallback al sistema clásico si no hay nuevo Input System.
 #endif
     }
 
     //=========================================================================
-    // Aplica rotación sobre o eixo Y co input horizontal e movemento adiante/atrás co input vertical
+    // Mueve al jugador y rota en función del input guardado en moveInput.
+    // Se llama desde Update(), una vez por frame.
     //=========================================================================
-    void MovePlayer() // Move e rota o xogador baseándose no moveInput
+    void MovePlayer()
     {
-        if (Mathf.Abs(moveInput.x) > 0.01f) // Rota con A/D (input horizontal)
+        // Rotación alrededor del eje Y cuando hay input horizontal.
+        if (Mathf.Abs(moveInput.x) > 0.01f)
         {
             transform.Rotate(0f, moveInput.x * rotationSpeed * Time.deltaTime, 0f);
         }
 
-        if (Mathf.Abs(moveInput.y) > 0.01f) // Move cara adiante/atrás con W/S (input vertical)
+        // Movimiento hacia delante/atrás en la dirección forward local del transform.
+        if (Mathf.Abs(moveInput.y) > 0.01f)
         {
             transform.position += transform.forward * moveInput.y * moveSpeed * Time.deltaTime;
         }
     }
 
     //=========================================================================
-    // Acción de Space: xera un 'knock' (son) e alerta a gardas próximos
+    // Maneja el knock cuando el jugador pulsa Space.
+    // Reproduce sonido, dibuja debug y alerta a los guardias cercanos.
     //=========================================================================
     void HandleSpaceAction()
     {
-        // Reproduce o son de knock (se hai AudioSource e clip)
-        StartCoroutine(PlayKnock());
+        StartCoroutine(PlayKnock()); // Reproduce el sonido del knock de forma no bloqueante.
 
-        // Notifica aos gardas próximos para investigar a posición actual do xogador
+        // Busca todos los objetos GuardController en la escena.
         GuardController[] guards = FindObjectsByType<GuardController>(FindObjectsSortMode.None);
-        Vector3 point = transform.position;
+        Vector3 point = transform.position; // Posición actual del jugador.
 
-        // Gardar estado para debuxar a esfera
+        // Guardamos la posición y el tiempo del knock para los gizmos.
         lastKnockPoint = point;
         lastKnockTime = Time.time;
 
-        // Debuxo en runtime (Game View) con Debug.DrawLine como un círculo de segmentos
+        // Dibuja un círculo de debug en el plano XZ para visualizar el radio del knock.
         DrawKnockCircleDebug(lastKnockPoint, knockRadius, knockGizmoDuration, knockGizmoColor);
 
         foreach (var guard in guards)
         {
-            float dist = Vector3.Distance(guard.transform.position, point);
+            float dist = Vector3.Distance(guard.transform.position, point); // Distancia del guardia al knock.
+
             if (dist <= knockRadius)
             {
+                // Si el guardia está dentro del radio, le pedimos que investigue el punto.
                 guard.InvestigatePoint(point);
             }
         }
     }
 
-
+    //=========================================================================
+    // Maneja la acción con la tecla E: explosión y huida de los guardias.
+    //=========================================================================
     void HandleEAction()
     {
-        StartCoroutine(PlayExplosion());
-        GuardController[] guards = FindObjectsByType<GuardController>(FindObjectsSortMode.None);
-        Vector3 explosionPoint = transform.position;
+        StartCoroutine(PlayExplosion()); // Reproduce el sonido de explosión.
 
-        // Guardamos el estado de la explosión para dibujar la esfera
+        GuardController[] guards = FindObjectsByType<GuardController>(FindObjectsSortMode.None);
+        Vector3 explosionPoint = transform.position; // Posición del jugador en el momento de la explosión.
+
         lastExplosionPoint = explosionPoint;
         lastExplosionTime = Time.time;
 
@@ -193,60 +205,62 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
 
             if (dist <= explosionRadius)
             {
+                // Pide al guardia que se vaya al punto seguro.
                 guard.RunAwayPoint(safePoint.position);
             }
         }
     }
 
-
     //=========================================================================
-    // Debuxa un círculo no plano XZ usando segmentos con Debug.DrawLine (visible en Game/Scene)
+    // Dibuja un círculo en el plano XZ usando Debug.DrawLine.
+    // Sirve solo para visualización en el modo Play/Scene.
     //=========================================================================
     void DrawKnockCircleDebug(Vector3 center, float radius, float duration, Color color)
     {
-        int segments = 36;
+        int segments = 36; // Número de segmentos para aproximar el círculo.
         float step = Mathf.PI * 2f / segments;
-        Vector3 prev = center + new Vector3(radius, 0f, 0f);
+        Vector3 prev = center + new Vector3(radius, 0f, 0f); // Punto inicial en el extremo derecho.
+
         for (int i = 1; i <= segments; i++)
         {
             float angle = i * step;
             Vector3 next = center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
-            Debug.DrawLine(prev, next, color, duration);
+            Debug.DrawLine(prev, next, color, duration); // Dibuja cada segmento del círculo.
             prev = next;
         }
     }
 
     //=========================================================================
-    // Gizmos en Scene View: debuxa a esfera do knock durante un tempo tras premer Space
+    // Dibuja gizmos en el editor para el radio del knock.
+    // Se ejecuta en el editor y en Play a través de OnDrawGizmos.
     //=========================================================================
     void OnDrawGizmos()
     {
         if (!showKnockGizmos)
             return;
 
-        // Só en Play: evita debuxar valores por defecto en modo edición
         if (!Application.isPlaying)
-            return;
+            return; // Solo dibuja durante la ejecución del juego para evitar valores falsos en edición.
 
         if (Time.time - lastKnockTime <= knockGizmoDuration)
         {
             Color prev = Gizmos.color;
             Gizmos.color = knockGizmoColor;
-            Gizmos.DrawWireSphere(lastKnockPoint, knockRadius);
+            Gizmos.DrawWireSphere(lastKnockPoint, knockRadius); // Dibuja una esfera alrededor del knock.
             Gizmos.color = prev;
         }
     }
 
-
-
     //=========================================================================
-    // Debuxa un círculo no plano XZ usando segmentos con Debug.DrawLine (visible en Game/Scene)
+    // Dibuja un círculo en el plano XZ para la explosión.
+    // Similar a DrawKnockCircleDebug pero con parámetros de explosión.
     //=========================================================================
     void DrawnExplosionCircleDebug(Vector3 center, float radius, float duration, Color color)
     {
         int segments = 36;
         float step = Mathf.PI * 2f / segments;
         Vector3 prev = center + new Vector3(radius, 0f, 0f);
+
         for (int i = 1; i <= segments; i++)
         {
             float angle = i * step;
@@ -256,25 +270,22 @@ public class PlayerController : MonoBehaviour // Controlador sinxelo para o xoga
         }
     }
 
-
-    // HandleEAction
-
     //=========================================================================
-    // Reproduce o son de knock e espera a que remate
+    // Reproduce el sonido del knock y espera a que termine el clip.
+    // Se usa StartCoroutine para no bloquear el juego.
     //=========================================================================
     IEnumerator PlayKnock()
     {
         if (knockAudio != null)
         {
             knockAudio.Play();
-            yield return new WaitForSeconds(knockAudio.clip.length);
+            yield return new WaitForSeconds(knockAudio.clip.length); // Espera hasta que el sonido termine.
         }
     }
 
     //=========================================================================
-    // Reproduce o son de explosion e espera a que remate
+    // Reproduce el sonido de la explosión y espera a que termine el clip.
     //=========================================================================
-
     IEnumerator PlayExplosion()
     {
         if (explosionAudio != null)

@@ -152,22 +152,29 @@ public class GuardController : MonoBehaviour // Controlador de gardián con FSM 
         }
     }
 
+    //=========================================================================
+    // Move al guardia hacia un punto de escape cuando se activa el estado RunaWay.
+    // Si tarda demasiado o llega al escape point, vuelve a patrullar.
+    //=========================================================================
     void RunaWay()
     {
-        // Loxica de fuxida
-        var agent = GetComponent<UnityEngine.AI.NavMeshAgent>();
+        var agent = GetComponent<UnityEngine.AI.NavMeshAgent>(); // Obtiene el NavMeshAgent para controlar el movimiento.
 
+        // Si el guardia ha estado huyendo más de 10 segundos, vuelve al estado de patrulla.
         if (Time.time - runaWayStartTime > 10f)
         {
             currentState = State.Patrol;
             return;
         }
+
+        // Si el guardia ya alcanzó el punto de escape, cambia a patrullar.
         if (Vector3.Distance(transform.position, escapePoint) <= agent.stoppingDistance + 0.5f)
         {
             currentState = State.Patrol;
             return;
         }
-        // Hacemos que el agente vaya al punto de escape
+
+        // Indica al NavMeshAgent que debe navegar hacia el punto seguro.
         agent.SetDestination(escapePoint);
     }
     //=========================================================================
